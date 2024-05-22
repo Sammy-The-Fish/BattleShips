@@ -20,6 +20,9 @@ func main() {
 		}
 	}
 	PrintBoard(board)
+	// fmt.Print("testing")
+	board = PlaceSingleShip(board, 5, 5, 'E', 3)
+	PrintBoard(board)
 }
 
 func PlayerPlacingShips(board [10][10]int) {
@@ -38,22 +41,61 @@ func PlayerPlacingShips(board [10][10]int) {
 }
 
 func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int) [10][10]int {
-	board[y][x] = 1
+	fmt.Print(x, y, direction)
 	var dy int = 0
 	var dx int = 0
-	switch direction {
-	case 'N':
-		dy = 1
-	case 'E':
-		dx = 1
-	case 'S':
-		dy = -1
-	case 'W':
-		dx = -1
+	success := false
+	for !success {
+		x--
+		y--
+		board[y][x] = 1
+		switch direction {
+		case 'N':
+			dy = 1
+		case 'E':
+			dx = 1
+		case 'S':
+			dy = -1
+		case 'W':
+			dx = -1
+		}
+		fmt.Printf("\ndy: %d\nDx: %d", dy, dx)
+		fmt.Printf("\ny: %d\nx: %d", y, x)
+		success = true
+		for i := range length {
+			fmt.Println("\n\n\n", i)
+			fmt.Printf("\ndy: %d\nDx: %d", dy, dx)
+			fmt.Printf("\ny: %d\nx: %d", y, x)
+			fmt.Printf("\nchecking location: X: %d, and Y: %d", (x + (dx * i)), (y + (dy * i)))
+			//checks if out of bounds
+			if y+(dy*i) >= 10 || x+(dx*i) >= 10 || y+(dy*i) < 0 || x+(dx*i) < 0 {
+				success = false
+				color.Red("your ship goes out of bounds, please place again>> ")
+			} else if board[(y + (dy * i))][(x+(dx*i))] == 1 {
+				//ensures no colisions with other ships
+				success = false
+				color.Red("Your ship collides with another, please place again>> ")
+			}
+		}
+		if !success {
+			x, y, direction = CollectUserShipInput()
+		}
+
 	}
+
 	for i := range length {
 		board[y+(dy*i)][x+(dx*i)] = 1
 	}
+	return board
+}
+
+func CollectUserShipInput() (int, int, rune) {
+	var collum_rune rune
+	var row int
+	var direction rune
+	fmt.Scanf("%c%d %c", collum_rune, row, direction)
+	collum := int(collum_rune) - 65
+	return row, collum, direction
 }
 
 func PrintBoard(board [10][10]int) {
@@ -70,8 +112,12 @@ func PrintBoard(board [10][10]int) {
 
 	// print out rest of board
 	for i, collum := range board {
+		//ensure all lines are correctly aligned
+		if i != 9 {
+			fmt.Print(" ")
+		}
 		// print row number
-		fmt.Print(i)
+		fmt.Print(i + 1)
 		for _, value := range collum {
 			fmt.Print(" ")
 			if value == 0 {
