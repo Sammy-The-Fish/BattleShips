@@ -1,16 +1,24 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"unicode"
 
 	"github.com/fatih/color"
 )
 
 // Code used for respresenting boards in code
 // 0: empty space
-// 1: ship
-// 2: missed
-// 3: hit ship
+// 1: hit
+// 2: miss
+// Battleships:
+// 3: destroyer
+// 4: crusier
+// 5: submarine
+// 6: battleship
+// 7: carrier
 
 func main() {
 	var board [10][10]int
@@ -19,62 +27,76 @@ func main() {
 			board[i][j] = 0
 		}
 	}
-	PrintBoard(board)
-	// fmt.Print("testing")
-	board = PlaceSingleShip(board, 5, 5, 'E', 3)
-	PrintBoard(board)
+
+	PlayerPlacingShips(board)
 }
 
 func PlayerPlacingShips(board [10][10]int) {
 	fmt.Println("Formatting your input, please do coordinates with no space, then a space and then the direction the ship should face(N, S, E, W)")
 	fmt.Println("For example: E4 E")
 	fmt.Println("board:")
-	fmt.Print("Where to place destroyer (2) >> ")
-	var collum rune
-	var row int
-	var direction rune
+	PrintBoard(board)
 
-	fmt.Scanf("%c%d %c", collum, row, direction)
-	collum_num := int(collum) - 65
-	board = PlaceSingleShip(board, collum_num, row, direction, 2)
+	fmt.Print("Where do you want to place your destroyer (2)>> ")
+	row, collum, direction := CollectUserShipInput()
+	board = PlaceSingleShip(board, collum, row, direction, 2, 3)
+	PrintBoard(board)
 
+	fmt.Print("Where do you want to place your cruiser (3)>> ")
+	row, collum, direction = CollectUserShipInput()
+	fmt.Println("Row: ", row, "collum: ", collum, "direction: ", direction)
+	board = PlaceSingleShip(board, collum, row, direction, 3, 4)
+	PrintBoard(board)
+
+	fmt.Print("Where do you want to place your submarine (3)>> ")
+	row, collum, direction = CollectUserShipInput()
+	fmt.Println("Row: ", row, "collum: ", collum, "direction: ", direction)
+	board = PlaceSingleShip(board, collum, row, direction, 3, 5)
+	PrintBoard(board)
+
+	fmt.Print("Where do you want to place your battleship (4)>> ")
+	row, collum, direction = CollectUserShipInput()
+	fmt.Println("Row: ", row, "collum: ", collum, "direction: ", direction)
+	board = PlaceSingleShip(board, collum, row, direction, 4, 6)
+	PrintBoard(board)
+
+	fmt.Print("Where do you want to place your carrier (5)>> ")
+	row, collum, direction = CollectUserShipInput()
+	fmt.Println("Row: ", row, "collum: ", collum, "direction: ", direction)
+	board = PlaceSingleShip(board, collum, row, direction, 5, 7)
+	PrintBoard(board)
 }
 
-func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int) [10][10]int {
-	fmt.Print(x, y, direction)
+func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int, ship_type int) [10][10]int {
+	fmt.Println("Row: ", x, "collum: ", y, "direction: ", direction)
+	var error_color = color.New(color.FgRed)
 	var dy int = 0
 	var dx int = 0
 	success := false
+	y--
 	for !success {
-		x--
-		y--
-		board[y][x] = 1
 		switch direction {
-		case 'N':
+		case 'S':
 			dy = 1
 		case 'E':
 			dx = 1
-		case 'S':
+		case 'N':
 			dy = -1
 		case 'W':
 			dx = -1
 		}
-		fmt.Printf("\ndy: %d\nDx: %d", dy, dx)
-		fmt.Printf("\ny: %d\nx: %d", y, x)
 		success = true
 		for i := range length {
-			fmt.Println("\n\n\n", i)
-			fmt.Printf("\ndy: %d\nDx: %d", dy, dx)
-			fmt.Printf("\ny: %d\nx: %d", y, x)
-			fmt.Printf("\nchecking location: X: %d, and Y: %d", (x + (dx * i)), (y + (dy * i)))
-			//checks if out of bounds
 			if y+(dy*i) >= 10 || x+(dx*i) >= 10 || y+(dy*i) < 0 || x+(dx*i) < 0 {
+				//checks if out of bounds
 				success = false
-				color.Red("your ship goes out of bounds, please place again>> ")
-			} else if board[(y + (dy * i))][(x+(dx*i))] == 1 {
+				error_color.Print("your ship goes out of bounds, please place again>> ")
+				break
+			} else if board[(y + (dy * i))][(x+(dx*i))] != 0 {
 				//ensures no colisions with other ships
 				success = false
-				color.Red("Your ship collides with another, please place again>> ")
+				error_color.Print("Your ship collides with another, please place again>> ")
+				break
 			}
 		}
 		if !success {
@@ -84,17 +106,47 @@ func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int
 	}
 
 	for i := range length {
-		board[y+(dy*i)][x+(dx*i)] = 1
+		board[y+(dy*i)][x+(dx*i)] = ship_type
 	}
 	return board
 }
 
 func CollectUserShipInput() (int, int, rune) {
+	var error_color = color.New(color.FgRed)
+	var success = false
+	var success_row = false
+	var success_collum = false
+	var success_dir = false
 	var collum_rune rune
 	var row int
 	var direction rune
-	fmt.Scanf("%c%d %c", collum_rune, row, direction)
-	collum := int(collum_rune) - 65
+	var collum int
+	var allowed_dirs = [...]rune{'N', 'S', 'E', 'W'}
+	for !success {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Scanf("%c%d %c", &collum_rune, &row, &direction)
+		collum_rune = unicode.ToUpper(collum_rune)
+		collum = int(collum_rune) - 65
+		reader.ReadString('\n')
+		if row >= 1 && row <= 10 {
+			success_row = true
+		}
+		if collum >= 0 && collum <= 9 {
+			success_collum = true
+		}
+		for _, value := range allowed_dirs {
+			if value == direction {
+				success_dir = true
+				break
+			}
+		}
+		if success_collum && success_row && success_dir {
+			success = true
+		}
+		if !success {
+			error_color.Print("invalid input, try again>> ")
+		}
+	}
 	return row, collum, direction
 }
 
@@ -102,7 +154,7 @@ func PrintBoard(board [10][10]int) {
 	sea_color := color.New(color.FgCyan)
 	miss_color := color.New(color.FgHiWhite)
 	// print out letter row at top
-	fmt.Print(" ")
+	fmt.Print("  ")
 	for i := range board {
 		fmt.Print(" ")
 		letter := 65 + i
@@ -111,19 +163,19 @@ func PrintBoard(board [10][10]int) {
 	fmt.Print("\n")
 
 	// print out rest of board
-	for i, collum := range board {
-		//ensure all lines are correctly aligned
-		if i != 9 {
+	for x, collum := range board {
+		// ensure all lines are correctly aligned
+		if x != 9 {
 			fmt.Print(" ")
 		}
 		// print row number
-		fmt.Print(i + 1)
+		fmt.Print(x + 1)
 		for _, value := range collum {
 			fmt.Print(" ")
 			if value == 0 {
 				sea_color.Print("~")
-			} else if value == 1 {
-				miss_color.Print("x")
+			} else {
+				miss_color.Print(value)
 			}
 		}
 		fmt.Print("\n")
