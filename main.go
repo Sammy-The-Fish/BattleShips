@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/fatih/color"
+	"github.com/inancgumus/screen"
 )
 
 // Code used for respresenting boards in code
@@ -21,14 +22,27 @@ import (
 // 7: carrier
 
 func main() {
-	var board [10][10]int
-	for i, collum := range board {
+	var player1_board [10][10]int
+	for i, collum := range player1_board {
 		for j := range collum {
-			board[i][j] = 0
+			player1_board[i][j] = 0
 		}
 	}
 
-	PlayerPlacingShips(board)
+	var player2_board [10][10]int
+	for i, collum := range player2_board {
+		for j := range collum {
+			player2_board[i][j] = 0
+		}
+	}
+	fmt.Println("----PLAYER 1----")
+	PlayerPlacingShips(player1_board)
+	screen.Clear()
+	screen.MoveTopLeft()
+	fmt.Println("----PLAYER 2----")
+	PlayerPlacingShips(player2_board)
+	screen.Clear()
+	screen.MoveTopLeft()
 }
 
 func PlayerPlacingShips(board [10][10]int) {
