@@ -20,6 +20,18 @@ type Player struct {
 	sunk   int
 }
 
+var exampleBoard = [10][10]int{
+	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{3, 0, 0, 7, 7, 7, 7, 7, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 4, 4, 4, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 6, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 6, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 6, 0},
+	{0, 5, 5, 5, 0, 0, 0, 0, 6, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+
 // Code used for respresenting boards in code
 // 0: empty space
 // 1: hit
@@ -36,26 +48,43 @@ func main() {
 	InitBoard(&player1.board)
 	InitBoard(&player1.radar)
 
-	var player2 = Player{number: 1, hits: 0, misses: 0, sunk: 0}
+	var player2 = Player{number: 2, hits: 0, misses: 0, sunk: 0}
 	InitBoard(&player2.board)
 	InitBoard(&player2.radar)
 
+	var players = [...]*Player{&player1, &player2}
+
 	PrintPlayerTurn(&player1)
 	fmt.Println("----PLAYER 1----")
-	player1.board = PlayerPlacingShips(player1.board)
+	// player1.board = PlayerPlacingShips(player1.board)
+	player1.board = exampleBoard
 	screen.Clear()
 	screen.MoveTopLeft()
 	fmt.Println("----PLAYER 2----")
-	player2.board = PlayerPlacingShips(player2.board)
+	// player2.board = PlayerPlacingShips(player2.board)
+	player2.board = exampleBoard
 	screen.Clear()
 	screen.MoveTopLeft()
 	var playing = true
+	var turns = 0
 	for playing {
+		var hit = true
 		var collum, row int
-		PrintPlayerTurn(&player1)
-		fmt.Print("\n\nWhere do you want to place your ship >> ")
-		row, collum = CollectUserAttackInput()
-		AttackBoard(&player1, &player2, row, collum)
+		var attacker = players[(turns % 2)]
+		var victim = players[((turns + 1) % 2)]
+		for hit {
+			PrintPlayerTurn(attacker)
+			fmt.Print("\n\nWhere do you want attack! >> ")
+			collum, row = CollectUserAttackInput()
+			hit = AttackBoard(attacker, victim, row, collum)
+		}
+		fmt.Printf("-----------------PRESS ENTER TO PROCEED TO PLAYER %d'S TURN-----------------\n", victim.number)
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		screen.Clear()
+		screen.MoveTopLeft()
+		turns++
+
 	}
 }
 
@@ -104,13 +133,34 @@ func PlayerPlacingShips(board [10][10]int) [10][10]int {
 	return board
 }
 
-func AttackBoard(attacker *Player, victim *Player, row int, collum int) {
+func AttackBoard(attacker *Player, victim *Player, row int, collum int) bool {
+	collum--
 	if victim.board[collum][row] >= 3 {
+
+		value := victim.board[collum][row]
 		attacker.radar[collum][row] = 1
 		victim.board[collum][row] = 1
 		attacker.hits++
 		fmt.Println("HIT!!!!!!")
+		//checking if a sink
+		sink := true
+		for _, collum := range victim.board {
+			for _, place_value := range collum {
+				sink = !(place_value == value)
+			}
+		}
+		if sink {
+			fmt.Println("and a sink!!")
+			attacker.sunk++
+		}
+		return true
+	} else {
+		attacker.radar[collum][row] = 2
+		victim.board[collum][row] = 2
+		attacker.misses++
+		fmt.Println("Miss")
 	}
+	return false
 }
 
 func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int, ship_type int) [10][10]int {
@@ -227,8 +277,15 @@ func CollectUserShipInput() (int, int, rune) {
 }
 
 func PrintBoard(board [10][10]int) {
+
+	var key = "KEY:\nSHIP:    0\nMISS     .\nHIT:     X"
+
+	keyRows := strings.Split(CreateBorder(key, *color.New()), "\n")
+
 	sea_color := color.New(color.FgCyan, color.BgBlue)
 	ship_color := color.New(color.FgBlack, color.BgHiWhite)
+	miss_color := color.New(color.FgHiRed, color.BgBlue)
+	hit_color := color.New(color.FgBlack, color.BgRed)
 	// print out letter row at top
 	fmt.Print("  ")
 	for i := range board {
@@ -247,15 +304,32 @@ func PrintBoard(board [10][10]int) {
 		// print row number
 		fmt.Print(x + 1)
 		space_color := color.New()
-		for _, value := range collum {
+		for y, value := range collum {
 			space_color.Print(" ")
 			if value == 0 {
 				sea_color.Print("~")
 				space_color = sea_color
+
+			} else if value == 1 {
+				hit_color.Print("X")
+				space_color = hit_color
+			} else if value == 2 {
+				miss_color.Print("•")
+				space_color = miss_color
 			} else {
-				ship_color.Print("O")
+				ship_color.Print("0")
 				space_color = ship_color
 			}
+			if y+1 < len(board[x]) {
+				if board[x][y+1] <= 2 {
+					space_color = sea_color
+				} else if board[x][y+1] >= 3 {
+					space_color = ship_color
+				}
+			}
+		}
+		if x < len(keyRows) {
+			fmt.Print("\t", keyRows[x])
 		}
 		fmt.Print("\n")
 	}
@@ -267,10 +341,10 @@ func PrintPlayerTurn(player *Player) {
 	borderStatsRows := strings.Split(borderStats, "\n")
 	//print Radar + stats
 	radar_color := color.New(color.FgHiGreen, color.BgBlack)
-	// radar_miss := color.New(color.FgHiBlue)
-	radar_hit := color.New(color.FgHiRed)
+	radar_miss := color.New(color.FgHiBlue, color.BgBlack)
+	radar_hit := color.New(color.FgHiRed, color.BgBlack)
 	fmt.Print("  ")
-	for i := range player.board {
+	for i := range player.radar {
 		fmt.Print(" ")
 		letter := 65 + i
 		fmt.Printf("%c", letter)
@@ -278,7 +352,7 @@ func PrintPlayerTurn(player *Player) {
 	fmt.Print("\n")
 
 	// print out rest of board
-	for x, collum := range player.board {
+	for x, collum := range player.radar {
 		// ensure all lines are correctly aligned
 		if x != 9 {
 			fmt.Print(" ")
@@ -291,6 +365,8 @@ func PrintPlayerTurn(player *Player) {
 			if value == 0 {
 				radar_color.Print("-")
 
+			} else if value == 2 {
+				radar_miss.Print("o")
 			} else {
 				radar_hit.Print("X")
 			}
@@ -332,6 +408,5 @@ func CreateBorder(text string, text_color color.Color) string {
 		result += "─"
 	}
 	result += "┘\n"
-	// text_color.Printf(result)
 	return result
 }
