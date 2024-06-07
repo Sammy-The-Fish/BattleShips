@@ -20,6 +20,13 @@ type Player struct {
 	sunk   int
 }
 
+type Report struct {
+	row    int
+	collum rune
+	hit    bool
+	sunk   bool
+}
+
 var exampleBoard = [10][10]int{
 	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{3, 0, 0, 7, 7, 7, 7, 7, 0, 0},
@@ -68,15 +75,16 @@ func main() {
 	var playing = true
 	var turns = 0
 	for playing {
-		var hit = true
 		var collum, row int
 		var attacker = players[(turns % 2)]
 		var victim = players[((turns + 1) % 2)]
-		for hit {
+		var result = Report{hit: true}
+		for result.hit {
 			PrintPlayerTurn(attacker)
 			fmt.Print("\n\nWhere do you want attack! >> ")
 			collum, row = CollectUserAttackInput()
-			hit = AttackBoard(attacker, victim, row, collum)
+			result = AttackBoard(attacker, victim, row, collum)
+			PrintAttackReport(*attacker, result)
 		}
 		fmt.Printf("-----------------PRESS ENTER TO PROCEED TO PLAYER %d'S TURN-----------------\n", victim.number)
 		scanner := bufio.NewScanner(os.Stdin)
@@ -133,10 +141,13 @@ func PlayerPlacingShips(board [10][10]int) [10][10]int {
 	return board
 }
 
-func AttackBoard(attacker *Player, victim *Player, row int, collum int) bool {
+func AttackBoard(attacker *Player, victim *Player, row int, collum int) Report {
+	var result Report
+	result.row = collum
+	result.collum = rune(row + 65)
 	collum--
 	if victim.board[collum][row] >= 3 {
-
+		result.hit = true
 		value := victim.board[collum][row]
 		attacker.radar[collum][row] = 1
 		victim.board[collum][row] = 1
@@ -146,14 +157,19 @@ func AttackBoard(attacker *Player, victim *Player, row int, collum int) bool {
 		sink := true
 		for _, collum := range victim.board {
 			for _, place_value := range collum {
-				sink = !(place_value == value)
+				if place_value == value {
+					sink = false
+					break
+				}
+
 			}
 		}
 		if sink {
 			fmt.Println("and a sink!!")
 			attacker.sunk++
+			result.sunk = true
 		}
-		return true
+		return result
 	} else {
 		attacker.radar[collum][row] = 2
 		victim.board[collum][row] = 2
@@ -216,11 +232,9 @@ func CollectUserAttackInput() (int, int) {
 	var row int
 	var collum int
 	for !success {
-		reader := bufio.NewReader(os.Stdin)
 		fmt.Scanf("%c%d", &collum_rune, &row)
 		collum_rune = unicode.ToUpper(collum_rune)
 		collum = int(collum_rune) - 65
-		reader.ReadString('\n')
 		if row >= 1 && row <= 10 {
 			success_row = true
 		}
@@ -409,4 +423,12 @@ func CreateBorder(text string, text_color color.Color) string {
 	}
 	result += "┘\n"
 	return result
+}
+
+func PrintAttackReport(player Player, report Report) {
+	var result = ""
+	if report.hit {
+		result += fmt.Sprintf("report for attack on %c%d", report.collum, report.row)
+		result += "HIT"
+	}
 }
