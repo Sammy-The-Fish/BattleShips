@@ -25,6 +25,7 @@ type Report struct {
 	collum rune
 	hit    bool
 	sunk   bool
+	value  int
 }
 
 var exampleBoard = [10][10]int{
@@ -79,12 +80,21 @@ func main() {
 		var attacker = players[(turns % 2)]
 		var victim = players[((turns + 1) % 2)]
 		var result = Report{hit: true}
+		PrintPlayerTurn(attacker)
 		for result.hit {
-			PrintPlayerTurn(attacker)
 			fmt.Print("\n\nWhere do you want attack! >> ")
 			collum, row = CollectUserAttackInput()
 			result = AttackBoard(attacker, victim, row, collum)
+			screen.Clear()
+			screen.MoveTopLeft()
 			PrintAttackReport(*attacker, result)
+			if result.sunk {
+				win := CheckWin(victim.board)
+				if win {
+					DeclareWinner(*attacker, *victim)
+					return
+				}
+			}
 		}
 		fmt.Printf("-----------------PRESS ENTER TO PROCEED TO PLAYER %d'S TURN-----------------\n", victim.number)
 		scanner := bufio.NewScanner(os.Stdin)
@@ -145,14 +155,15 @@ func AttackBoard(attacker *Player, victim *Player, row int, collum int) Report {
 	var result Report
 	result.row = collum
 	result.collum = rune(row + 65)
+	result.hit = false
 	collum--
 	if victim.board[collum][row] >= 3 {
 		result.hit = true
 		value := victim.board[collum][row]
+		result.value = value
 		attacker.radar[collum][row] = 1
 		victim.board[collum][row] = 1
 		attacker.hits++
-		fmt.Println("HIT!!!!!!")
 		//checking if a sink
 		sink := true
 		for _, collum := range victim.board {
@@ -165,7 +176,6 @@ func AttackBoard(attacker *Player, victim *Player, row int, collum int) Report {
 			}
 		}
 		if sink {
-			fmt.Println("and a sink!!")
 			attacker.sunk++
 			result.sunk = true
 		}
@@ -174,13 +184,11 @@ func AttackBoard(attacker *Player, victim *Player, row int, collum int) Report {
 		attacker.radar[collum][row] = 2
 		victim.board[collum][row] = 2
 		attacker.misses++
-		fmt.Println("Miss")
 	}
-	return false
+	return result
 }
 
 func PlaceSingleShip(board [10][10]int, x int, y int, direction rune, length int, ship_type int) [10][10]int {
-	fmt.Println("Row: ", x, "collum: ", y, "direction: ", direction)
 	var error_color = color.New(color.FgRed)
 	var dy int = 0
 	var dx int = 0
@@ -232,9 +240,11 @@ func CollectUserAttackInput() (int, int) {
 	var row int
 	var collum int
 	for !success {
+		reader := bufio.NewReader(os.Stdin)
 		fmt.Scanf("%c%d", &collum_rune, &row)
 		collum_rune = unicode.ToUpper(collum_rune)
 		collum = int(collum_rune) - 65
+		reader.ReadString('\n')
 		if row >= 1 && row <= 10 {
 			success_row = true
 		}
@@ -343,7 +353,7 @@ func PrintBoard(board [10][10]int) {
 			}
 		}
 		if x < len(keyRows) {
-			fmt.Print("\t", keyRows[x])
+			fmt.Print("\t\t", keyRows[x])
 		}
 		fmt.Print("\n")
 	}
@@ -394,6 +404,7 @@ func PrintPlayerTurn(player *Player) {
 }
 
 func CreateBorder(text string, text_color color.Color) string {
+
 	var lines = strings.Split(text, "\n")
 	var length int = 0
 	for _, line := range lines {
@@ -426,9 +437,78 @@ func CreateBorder(text string, text_color color.Color) string {
 }
 
 func PrintAttackReport(player Player, report Report) {
+	radar_color := color.New(color.FgHiGreen, color.BgBlack)
+	radar_miss := color.New(color.FgHiBlue, color.BgBlack)
+	radar_hit := color.New(color.FgHiRed, color.BgBlack)
+	ship_values := [...]string{"destroyer", "cruiser", "submarine", "battleship", "carrier"}
 	var result = ""
-	if report.hit {
-		result += fmt.Sprintf("report for attack on %c%d", report.collum, report.row)
+	result += fmt.Sprintf("report for attack on %c%d:     \n\n", report.collum, report.row)
+	if report.sunk {
+		result += "SUNK THEIR: "
+		result += ship_values[(report.value - 3)]
+	} else if report.hit {
 		result += "HIT"
+	} else {
+		result += "MISS"
 	}
+	borderedResult := CreateBorder(result, color.Color{})
+	resultLines := strings.Split(borderedResult, "\n")
+
+	fmt.Print("  ")
+	for i := range player.radar {
+		fmt.Print(" ")
+		letter := 65 + i
+		fmt.Printf("%c", letter)
+	}
+	fmt.Print("\n")
+	//Print out radar + board + results
+	for x, collum := range player.radar {
+		// ensure all lines are correctly aligned
+		if x != 9 {
+			fmt.Print(" ")
+		}
+		// print row number
+		fmt.Print(x + 1)
+		space_color := color.New(color.BgBlack)
+		for _, value := range collum {
+			space_color.Print(" ")
+			if value == 0 {
+				radar_color.Print("-")
+
+			} else if value == 2 {
+				radar_miss.Print("o")
+			} else {
+				radar_hit.Print("X")
+			}
+		}
+		if x < len(resultLines) {
+			fmt.Print("\t\t", resultLines[x])
+		}
+		fmt.Print("\n")
+	}
+	PrintBoard(player.board)
+}
+
+func CheckWin(board [10][10]int) bool {
+	for _, collum := range board {
+		for _, value := range collum {
+			if value >= 3 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func DeclareWinner(winner Player, loser Player) {
+	screen.Clear()
+	screen.MoveTopLeft()
+	fmt.Printf("------PLAYER %d WINS------\n\n", winner.number)
+	PrintBoard(winner.board)
+	fmt.Print("\n\n\n")
+	fmt.Printf("------PLAYER %d'S LOSING BOARD------\n\n", loser.number)
+	PrintBoard(loser.board)
+	fmt.Print("\n\n\nPress Enter to close game >> ")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
 }
